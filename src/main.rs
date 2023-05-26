@@ -2,41 +2,72 @@ use std::fs::File;
 use std::io::Write;
 
 use regex::Regex;
+use indicatif::ProgressBar;
 use futures_util::StreamExt;
 use scraper::{Html, Selector};
-use indicatif::{ProgressBar, ProgressStyle};
+use reqwest::header::HeaderValue;
+
+
+pub trait HeaderValueExt {
+    fn to_string(&self) -> String;
+}
+
+impl HeaderValueExt for HeaderValue {
+    fn to_string(&self) -> String {
+        self.to_str().unwrap_or_default().to_string()
+    }
+}
 
 async fn request_episode(ep: String, ep_name: String) -> Result<(), Box<dyn std::error::Error>> {
     let url = "https://dbz.watch-dbs.com/v/".to_string();
     let url = url + &ep + ".mp4";
-
-    let mut response_stream = 
+    let response = 
         reqwest::get(url)
         .await?
-        .bytes_stream()
     ;
 
-    let filename = "./downloads/".to_string();
-    let filename = filename + &ep_name + ".mp4";
-    let mut file = File::create(&filename).expect("Failure to create file!");
+    match response.status() {
+        reqwest::StatusCode::BAD_REQUEST => println!(
+            "content-length:{:?} server:{:?}", 
+            response.headers().get(reqwest::header::CONTENT_LENGTH),
+            response.headers().get(reqwest::header::SERVER)
+        ),
+        _status => {
+            let content_length = response.headers().get(reqwest::header::CONTENT_LENGTH).unwrap();
+            let content_length = content_length.to_string().parse::<u64>()?;
 
-    while let Some(chunk) = response_stream.next().await {        
-        match chunk {
-            Ok(chunk) => {
-                let write_file = 
-                    file
-                    .write_all(&chunk)
-                    .or(Err(format!("Error while writing to file")))
-                ;
+            let bar =
+                ProgressBar::new(content_length);
+                ProgressBar::println(&bar, "downloading...");
+            
+            let stream = &mut response.bytes_stream();
+            let filename = "./downloads/".to_string();
+            let filename = filename + &ep_name + ".mp4";
+            let mut file = File::create(&filename).expect("Failure to create file!");
 
-                match write_file {
-                    Err(e) => println!("{:?}", e),
-                    _ => ()
+            while let Some(chunk) = stream.next().await {
+                match chunk {
+                    Ok(chunk) => {
+                        let write_file =
+                            file
+                            .write_all(&chunk)
+                            .or(Err(format!("Error while writing to file")))
+                        ;
+
+                        match write_file {
+                            Err(e) => println!("{:?}", e),
+                            _ => {
+                                bar.inc(chunk.len().try_into().unwrap());
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
                 }
             }
-            Err(e) => {
-                println!("Error: {}", e)
-            }
+
+            bar.finish();
         }
     }
 
@@ -53,9 +84,11 @@ async fn download_episode(ep: usize, ep_name: &str) -> std::io::Result<()> {
         episode = "0".to_string() + &ep_incremented.to_string();
     }
 
-    match request_episode(episode.to_string(), parsed_ep_name.to_string()).await {
-        Ok(()) => (),
-        Err(e) => println!("{:?}", e)
+    if ep == 0 || ep == 1 {
+        match request_episode(episode.to_string(), parsed_ep_name.to_string()).await {
+            Ok(()) => (),
+            Err(e) => println!("{:?}", e)
+        }
     }
     
     Ok(())
