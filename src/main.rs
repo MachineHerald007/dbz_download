@@ -40,7 +40,6 @@ async fn request_episode(ep: String, ep_name: String, total_ep: String) -> Resul
             let bar_msg =
                 style("\n  Download").bold().magenta().to_string() +
                 &style(" [".to_owned() + &ep + "/" + &total_ep + "]").bold().yellow().to_string();
-
             let bar =
                 ProgressBar::new(content_length);
                 ProgressBar::println(&bar, bar_msg.to_string());
