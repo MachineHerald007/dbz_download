@@ -7,7 +7,6 @@ use futures_util::StreamExt;
 use scraper::{Html, Selector};
 use reqwest::header::HeaderValue;
 
-
 pub trait HeaderValueExt {
     fn to_string(&self) -> String;
 }
