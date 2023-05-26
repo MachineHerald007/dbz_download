@@ -137,6 +137,7 @@ dependencies = [
 name = "dbz_download"
 version = "0.1.0"
 dependencies = [
+ "console",
  "futures-util",
  "indicatif",
  "regex",

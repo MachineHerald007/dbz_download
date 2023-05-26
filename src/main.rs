@@ -1,11 +1,13 @@
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 
 use regex::Regex;
-use indicatif::ProgressBar;
+use console::style;
 use futures_util::StreamExt;
 use scraper::{Html, Selector};
 use reqwest::header::HeaderValue;
+use indicatif::{ProgressBar, ProgressStyle};
 
 pub trait HeaderValueExt {
     fn to_string(&self) -> String;
@@ -17,9 +19,9 @@ impl HeaderValueExt for HeaderValue {
     }
 }
 
-async fn request_episode(ep: String, ep_name: String) -> Result<(), Box<dyn std::error::Error>> {
-    let url = "https://dbz.watch-dbs.com/v/".to_string();
-    let url = url + &ep + ".mp4";
+async fn request_episode(ep: String, ep_name: String, total_ep: String) -> Result<(), Box<dyn std::error::Error>> {
+    let url = "https://dbz.watch-dbs.com/v/";
+    let url = url.to_string() + &ep + ".mp4";
     let response = 
         reqwest::get(url)
         .await?
@@ -34,14 +36,21 @@ async fn request_episode(ep: String, ep_name: String) -> Result<(), Box<dyn std:
         _status => {
             let content_length = response.headers().get(reqwest::header::CONTENT_LENGTH).unwrap();
             let content_length = content_length.to_string().parse::<u64>()?;
+            let bar_msg = style("\n  Download").bold().magenta().to_string() + " [" + &ep + "/" + &total_ep + "]";
+            let done_msg = style("DONE").bold().green();
 
             let bar =
                 ProgressBar::new(content_length);
-                ProgressBar::println(&bar, "downloading...");
-            
+                ProgressBar::println(&bar, bar_msg.to_string());
+                ProgressBar::set_style(
+                    &bar,
+                    ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta}) {msg}").unwrap()
+                );
+
             let stream = &mut response.bytes_stream();
-            let filename = "./downloads/".to_string();
-            let filename = filename + &ep_name + ".mp4";
+            let _dir = fs::create_dir_all("./downloads")?;
+            let filename = "./downloads/";
+            let filename = filename.to_string() + &ep_name + ".mp4";
             let mut file = File::create(&filename).expect("Failure to create file!");
 
             while let Some(chunk) = stream.next().await {
@@ -66,24 +75,24 @@ async fn request_episode(ep: String, ep_name: String) -> Result<(), Box<dyn std:
                 }
             }
 
-            bar.finish();
+            bar.finish_with_message(done_msg.to_string());
         }
     }
 
     Ok(())
 }
 
-async fn download_episode(ep: usize, ep_name: &str) -> std::io::Result<()> {
+async fn download_episode(ep: usize, ep_name: &str, total_ep: usize) -> std::io::Result<()> {
     let mut episode = ep.to_string();
     let non_alphanumeric = Regex::new(r"[^a-zA-Z0-9 ]").unwrap();
-    let parsed_ep_name = non_alphanumeric.replace_all(ep_name, "");
+    let parsed_ep_name = non_alphanumeric.replace_all(ep_name, "").to_string();
     
     if ep < 10 {
         let ep_incremented = ep + 1;
         episode = "0".to_string() + &ep_incremented.to_string();
     }
 
-    match request_episode(episode.to_string(), parsed_ep_name.to_string()).await {
+    match request_episode(episode, parsed_ep_name, total_ep.to_string()).await {
         Ok(()) => (),
         Err(e) => println!("{:?}", e)
     }
@@ -115,7 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     for i in 0..episode_names.len() {
-        request_stack.push(download_episode(i, &episode_names[i]).await?);
+        request_stack.push(download_episode(i, &episode_names[i], episode_names.len()).await?);
     }
 
     Ok(())
