@@ -35,16 +35,20 @@ async fn request_episode(ep: String, ep_name: String, total_ep: String) -> Resul
         ),
         _status => {
             let content_length = response.headers().get(reqwest::header::CONTENT_LENGTH).unwrap();
-            let content_length = content_length.to_string().parse::<u64>()?;
-            let bar_msg = style("\n  Download").bold().magenta().to_string() + " [" + &ep + "/" + &total_ep + "]";
+            let content_length = content_length.to_string().parse::<u64>()?; 
             let done_msg = style("DONE").bold().green();
+            let bar_msg =
+                style("\n  Download").bold().magenta().to_string() +
+                &style(" [".to_owned() + &ep + "/" + &total_ep + "]").bold().yellow().to_string();
 
             let bar =
                 ProgressBar::new(content_length);
                 ProgressBar::println(&bar, bar_msg.to_string());
                 ProgressBar::set_style(
                     &bar,
-                    ProgressStyle::with_template("{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta}) {msg}").unwrap()
+                    ProgressStyle::with_template(
+                        "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({eta}) {msg}"
+                    ).unwrap()
                 );
 
             let stream = &mut response.bytes_stream();
@@ -83,13 +87,15 @@ async fn request_episode(ep: String, ep_name: String, total_ep: String) -> Resul
 }
 
 async fn download_episode(ep: usize, ep_name: &str, total_ep: usize) -> std::io::Result<()> {
-    let mut episode = ep.to_string();
+    let ep_incremented = ep + 1;
+    let mut episode = ep_incremented.to_string();
     let non_alphanumeric = Regex::new(r"[^a-zA-Z0-9 ]").unwrap();
     let parsed_ep_name = non_alphanumeric.replace_all(ep_name, "").to_string();
     
-    if ep < 10 {
-        let ep_incremented = ep + 1;
-        episode = "0".to_string() + &ep_incremented.to_string();
+    if ep_incremented < 10 {
+        episode = "0".to_string() + &episode.to_string();
+    } else {
+        episode = ep_incremented.to_string()
     }
 
     match request_episode(episode, parsed_ep_name, total_ep.to_string()).await {
