@@ -83,13 +83,11 @@ async fn download_episode(ep: usize, ep_name: &str) -> std::io::Result<()> {
         episode = "0".to_string() + &ep_incremented.to_string();
     }
 
-    if ep == 0 || ep == 1 {
-        match request_episode(episode.to_string(), parsed_ep_name.to_string()).await {
-            Ok(()) => (),
-            Err(e) => println!("{:?}", e)
-        }
+    match request_episode(episode.to_string(), parsed_ep_name.to_string()).await {
+        Ok(()) => (),
+        Err(e) => println!("{:?}", e)
     }
-    
+
     Ok(())
 }
 
