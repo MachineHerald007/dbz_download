@@ -1,2 +1,2 @@
 # dbz_download
-Scraper that scrapes DBZ episodes from a pirated streaming site
+Rust scraper that downloads DBZ episodes from a pirated streaming site.
