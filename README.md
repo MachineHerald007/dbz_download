@@ -10,7 +10,4 @@ Rust scraper that downloads DBZ episodes from a pirated streaming site.
 Running the executable will create a new "downloads" directory in the .exe's current directory/base directory of repository. 
 
 ### Example
-
-
-https://github.com/MachineHerald007/dbz_download/assets/131856995/45ce9441-92e2-471f-bc68-c5932530aebb
-
+https://github.com/MachineHerald007/dbz_download/assets/131856995/e0446799-6358-4627-b104-3da88b2392a8
